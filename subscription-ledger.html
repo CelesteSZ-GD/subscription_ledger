@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Ledger — Subscription Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #EDE7D8;
+    --bg-raised: #F6F2E7;
+    --ink: #22262F;
+    --ink-soft: #5B5A4F;
+    --line: #D8CFB8;
+    --line-strong: #B7AC8C;
+    --gold: #96741C;
+    --gold-strong: #7A5C14;
+    --teal: #1F6F63;
+    --green: #2F7D5A;
+    --amber: #A9740B;
+    --rust: #8F3E3E;
+    --shadow: 0 1px 0 rgba(34,38,47,0.06);
+    --focus: #1F6F63;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141920;
+      --bg-raised: #1C222B;
+      --ink: #EAE4D3;
+      --ink-soft: #A6A28E;
+      --line: #303844;
+      --line-strong: #47515F;
+      --gold: #D9B54B;
+      --gold-strong: #E8C868;
+      --teal: #5DBFAF;
+      --green: #5FC08A;
+      --amber: #E0A63A;
+      --rust: #D3847C;
+      --shadow: 0 1px 0 rgba(0,0,0,0.3);
+      --focus: #5DBFAF;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141920;
+    --bg-raised: #1C222B;
+    --ink: #EAE4D3;
+    --ink-soft: #A6A28E;
+    --line: #303844;
+    --line-strong: #47515F;
+    --gold: #D9B54B;
+    --gold-strong: #E8C868;
+    --teal: #5DBFAF;
+    --green: #5FC08A;
+    --amber: #E0A63A;
+    --rust: #D3847C;
+    --shadow: 0 1px 0 rgba(0,0,0,0.3);
+    --focus: #5DBFAF;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 13.5px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 40px 24px 90px;
+  }
+
+  header.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 20px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 18px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  header.top h1 {
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-size: clamp(28px, 4vw, 40px);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  header.top p {
+    margin: 6px 0 0;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    max-width: 42ch;
+  }
+  .saved-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+    color: var(--green);
+    opacity: 0.85;
+  }
+  .saved-indicator::before {
+    content: '●';
+    font-size: 8px;
+  }
+  .saved-indicator.pending { color: var(--amber); }
+  .saved-indicator.pending::before { content: '○'; }
+  .add-btn {
+    background: var(--ink);
+    color: var(--bg);
+    border: none;
+    padding: 11px 18px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .add-btn:hover { background: var(--gold-strong); }
+  .add-btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  /* ---- Budget summary ---- */
+  .budgets {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 30px;
+  }
+  .budget-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    padding: 16px 18px;
+  }
+  .budget-card .label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+  .budget-card .label .edit-cap {
+    background: none;
+    border: none;
+    color: var(--teal);
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .budget-card .figures {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .budget-card .spend {
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .budget-card .of-cap {
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .budget-card .of-cap input {
+    width: 70px;
+    background: var(--bg);
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 2px 4px;
+  }
+  .bar-track {
+    height: 6px;
+    background: var(--line);
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-fill { height: 100%; background: var(--green); transition: width 0.25s ease; }
+  .bar-fill.over { background: var(--rust); }
+  .bar-fill.near { background: var(--amber); }
+  .budget-card .status-line {
+    margin-top: 8px;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+  }
+  .budget-card .status-line.over-text { color: var(--rust); }
+  .budget-card .scope-note {
+    margin-top: 4px;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    opacity: 0.75;
+  }
+
+  /* ---- Filters ---- */
+  .filters {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filters .chip {
+    background: transparent;
+    border: 1px solid var(--line-strong);
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 11.5px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .filters .chip.active {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .filters .count {
+    margin-left: auto;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+  }
+
+  /* ---- Table ---- */
+  table.ledger {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table.ledger thead th {
+    text-align: left;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    font-weight: 500;
+    padding: 0 10px 8px;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  table.ledger tbody td {
+    padding: 10px 10px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+  table.ledger tbody tr:hover { background: var(--bg-raised); }
+  table.ledger input, table.ledger select {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 12.5px;
+    padding: 4px 5px;
+    width: 100%;
+  }
+  table.ledger input:hover, table.ledger select:hover { border-color: var(--line-strong); }
+  table.ledger input:focus, table.ledger select:focus {
+    border-color: var(--teal);
+    outline: none;
+    background: var(--bg-raised);
+  }
+  .col-platform { min-width: 140px; }
+  .col-price { width: 100px; }
+  .col-price input { text-align: right; }
+  .col-date { width: 120px; }
+  .col-cycle { width: 100px; }
+  .col-status { width: 118px; }
+  .col-actions { width: 70px; text-align: right; }
+
+  .status-pill {
+    display: inline-block;
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border: 1px solid currentColor;
+  }
+  .status-active { color: var(--green); }
+  .status-cancelled { color: var(--rust); text-decoration: line-through; text-decoration-color: var(--rust); }
+  .status-pending { color: var(--amber); }
+
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 6px;
+  }
+  .icon-btn:hover { color: var(--rust); }
+  .icon-btn.recalc:hover { color: var(--teal); }
+  .icon-btn.hist { color: var(--gold); }
+  .icon-btn.hist:hover { color: var(--gold-strong); }
+  .icon-btn.hist.is-open { color: var(--teal); }
+
+  tr.history-row td {
+    background: var(--bg-raised);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 14px 14px !important;
+  }
+  .hist-panel .hist-title {
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.02em;
+    margin-bottom: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+  .hist-cancel-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink-soft);
+  }
+  .hist-cancel-field input {
+    background: var(--bg);
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 11.5px;
+    padding: 3px 5px;
+    width: auto;
+  }
+  .hist-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .hist-chip {
+    font-size: 11px;
+    padding: 4px 9px;
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    background: var(--bg);
+  }
+
+  .fab { display: none; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--ink-soft);
+  }
+  .empty-state .ttl {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+
+  /* ---- Add panel (drawer) ---- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 22, 18, 0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+  }
+  .overlay.open { display: flex; }
+  .panel {
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    width: 100%;
+    max-width: 420px;
+    padding: 26px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .panel h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 22px;
+    margin: 0 0 18px;
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  .field input, .field select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 9px 10px;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: var(--teal);
+  }
+  .field-row { display: flex; gap: 10px; }
+  .field-row .field { flex: 1; }
+  .panel-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .btn-primary, .btn-secondary {
+    font-family: inherit;
+    font-size: 12.5px;
+    padding: 10px 16px;
+    cursor: pointer;
+    flex: 1;
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--bg);
+    border: none;
+  }
+  .btn-primary:hover { background: var(--gold-strong); }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+  }
+  .btn-secondary:hover { border-color: var(--ink); }
+
+  datalist {}
+
+  footer.note {
+    margin-top: 34px;
+    font-size: 11px;
+    color: var(--ink-soft);
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+  }
+  footer.note p { margin: 0 0 12px; max-width: 62ch; }
+  .backup-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--line-strong);
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 8px 13px;
+    cursor: pointer;
+  }
+  .btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
+
+  /* ---- Mobile: cards ---- */
+  @media (max-width: 760px) {
+    .wrap { padding: 22px 14px 100px; }
+
+    header.top {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 14px;
+      padding-bottom: 16px;
+      margin-bottom: 22px;
+    }
+    header.top .add-btn { display: none; }
+
+    footer.note { margin-top: 26px; }
+    .backup-actions { flex-direction: column; }
+    .btn-ghost { min-height: 42px; text-align: center; }
+
+    .budgets { grid-template-columns: 1fr; gap: 12px; margin-bottom: 22px; }
+    .budget-card { padding: 14px 15px; }
+    .budget-card .spend { font-size: 20px; }
+    .budget-card .of-cap input {
+      width: 64px;
+      min-height: 34px;
+      font-size: 16px; /* prevents iOS auto-zoom on focus */
+    }
+    .budget-card .edit-cap { min-height: 30px; padding: 4px 2px; }
+
+    .filters {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 4px;
+      margin-bottom: 12px;
+    }
+    .filters .chip {
+      flex-shrink: 0;
+      min-height: 36px;
+      padding: 8px 14px;
+    }
+    .filters .count { display: none; }
+
+    table.ledger thead { display: none; }
+    table.ledger, table.ledger tbody, table.ledger tr, table.ledger td { display: block; width: 100%; }
+    table.ledger tbody tr {
+      border: 1px solid var(--line);
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      background: var(--bg-raised);
+    }
+    table.ledger tbody td {
+      border-bottom: none;
+      padding: 7px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    table.ledger tbody td::before {
+      content: attr(data-label);
+      font-size: 10.5px;
+      color: var(--ink-soft);
+      letter-spacing: 0.03em;
+      flex-shrink: 0;
+      width: 84px;
+    }
+    tr.history-row td {
+      display: block;
+    }
+    tr.history-row td::before { content: none; }
+    table.ledger input, table.ledger select {
+      text-align: right;
+      font-size: 16px; /* prevents iOS auto-zoom on focus */
+      min-height: 38px;
+      padding: 6px 6px;
+    }
+    .col-actions {
+      justify-content: flex-end;
+      gap: 4px;
+    }
+    .col-actions::before { display: none; }
+    .icon-btn {
+      font-size: 17px;
+      min-width: 40px;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .empty-state { padding: 44px 16px; }
+
+    /* Floating add button replaces the header button on mobile */
+    .fab {
+      display: flex;
+      position: fixed;
+      right: 18px;
+      bottom: 22px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--ink);
+      color: var(--bg);
+      border: none;
+      font-size: 26px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+      z-index: 40;
+    }
+    .fab:active { background: var(--gold-strong); }
+
+    /* Add/edit panel becomes a bottom sheet */
+    .overlay { align-items: flex-end; padding: 0; }
+    .panel {
+      max-width: none;
+      width: 100%;
+      max-height: 88vh;
+      border-left: none;
+      border-right: none;
+      border-bottom: none;
+      padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+      animation: sheet-up 0.2s ease;
+    }
+    @keyframes sheet-up {
+      from { transform: translateY(16px); opacity: 0.6; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .field input, .field select {
+      font-size: 16px; /* prevents iOS auto-zoom on focus */
+      min-height: 42px;
+      padding: 10px 11px;
+    }
+    .field-row { flex-direction: column; gap: 0; }
+    .btn-primary, .btn-secondary { min-height: 46px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>The Ledger</h1>
+      <p>Every subscription, one page. Track renewals, watch the total, catch what's quietly draining the budget.</p>
+      <div class="saved-indicator" id="savedIndicator">All changes saved</div>
+    </div>
+    <button class="add-btn" id="openAdd">+ Add subscription</button>
+  </header>
+
+  <section class="budgets">
+    <div class="budget-card">
+      <div class="label">
+        <span>MONTHLY SPEND</span>
+        <button class="edit-cap" data-cap="monthly">edit cap</button>
+      </div>
+      <div class="figures">
+        <span class="spend" id="monthlySpend">AED 0</span>
+        <span class="of-cap" id="monthlyCapWrap">of AED <input type="number" id="monthlyCap" min="0" step="1" value="0"></span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="monthlyBar" style="width:0%"></div></div>
+      <div class="status-line" id="monthlyStatus"></div>
+      <div class="scope-note">Only platforms billed monthly</div>
+    </div>
+    <div class="budget-card">
+      <div class="label">
+        <span>YEARLY SPEND</span>
+        <button class="edit-cap" data-cap="yearly">edit cap</button>
+      </div>
+      <div class="figures">
+        <span class="spend" id="yearlySpend">AED 0</span>
+        <span class="of-cap" id="yearlyCapWrap">of AED <input type="number" id="yearlyCap" min="0" step="1" value="0"></span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="yearlyBar" style="width:0%"></div></div>
+      <div class="status-line" id="yearlyStatus"></div>
+      <div class="scope-note">Only platforms billed yearly</div>
+    </div>
+  </section>
+
+  <div class="filters" id="filters">
+    <button class="chip active" data-filter="all">All</button>
+    <button class="chip" data-filter="active">Active</button>
+    <button class="chip" data-filter="pending">Yet to subscribe</button>
+    <button class="chip" data-filter="cancelled">Cancelled</button>
+    <span class="count" id="countLabel"></span>
+  </div>
+
+  <table class="ledger">
+    <thead>
+      <tr>
+        <th class="col-platform">Platform</th>
+        <th class="col-date">Subscribed</th>
+        <th class="col-cycle">Cycle</th>
+        <th class="col-date">Renews</th>
+        <th class="col-price">Price (AED)</th>
+        <th class="col-status">Status</th>
+        <th class="col-actions"></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <div class="empty-state" id="emptyState" style="display:none;">
+    <div class="ttl">Nothing on the ledger yet</div>
+    <div>Add your first subscription to start tracking renewals and spend.</div>
+  </div>
+
+  <footer class="note">
+    <p>Stored privately in this browser only — nothing here is sent anywhere. Changes save automatically as you type. Clearing your browser data (or opening this on a different device) will not carry your entries over — use <strong>Backup</strong> below to move or protect your data.</p>
+    <div class="backup-actions">
+      <button class="btn-ghost" id="exportBtn">⭳ Download backup (.json)</button>
+      <button class="btn-ghost" id="importBtn">⭱ Restore from backup</button>
+      <input type="file" id="importFile" accept="application/json,.json" style="display:none;">
+    </div>
+  </footer>
+</div>
+
+<button class="fab" id="openAddMobile" aria-label="Add subscription">+</button>
+
+<!-- Add / edit drawer -->
+<div class="overlay" id="overlay">
+  <div class="panel">
+    <h2 id="panelTitle">Add subscription</h2>
+    <div class="field">
+      <label for="fPlatform">Platform</label>
+      <input list="platformPresets" id="fPlatform" placeholder="e.g. Vercel, CapCut, Claude">
+      <datalist id="platformPresets">
+        <option value="Vercel">
+        <option value="CapCut">
+        <option value="DaVinci Resolve">
+        <option value="Envato Elements">
+        <option value="Claude">
+        <option value="ChatGPT Plus">
+        <option value="Google One">
+        <option value="Gemini Advanced">
+        <option value="Adobe Creative Cloud">
+        <option value="Canva Pro">
+        <option value="Figma">
+        <option value="Notion">
+        <option value="Netflix">
+        <option value="Spotify">
+        <option value="Dropbox">
+        <option value="Frame.io">
+        <option value="Descript">
+        <option value="ElevenLabs">
+        <option value="Midjourney">
+      </datalist>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="fSubscribed">Subscribed on</label>
+        <input type="date" id="fSubscribed">
+      </div>
+      <div class="field">
+        <label for="fCycle">Billing cycle</label>
+        <select id="fCycle">
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+          <option value="one-time">One-time</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="fRenewal">Renews on</label>
+        <input type="date" id="fRenewal">
+      </div>
+      <div class="field">
+        <label for="fPrice">Price (AED)</label>
+        <input type="number" id="fPrice" min="0" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+    <div class="field">
+      <label for="fStatus">Status</label>
+      <select id="fStatus">
+        <option value="active">Active</option>
+        <option value="pending">Yet to subscribe</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div class="field" id="fCancelledWrap" style="display:none;">
+      <label for="fCancelled">Cancelled on</label>
+      <input type="date" id="fCancelled">
+    </div>
+    <div class="panel-actions">
+      <button class="btn-secondary" id="cancelBtn">Cancel</button>
+      <button class="btn-primary" id="saveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'ledger.subscriptions.v1';
+  const CAP_KEY = 'ledger.caps.v1';
+
+  let subs = [];
+  let caps = { monthly: 0, yearly: 0 };
+  let editingId = null;
+  let currentFilter = 'all';
+  let expandedIds = new Set();
+
+  function safeGet(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) { return fallback; }
+  }
+  function safeSet(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+  }
+
+  function load() {
+    subs = safeGet(STORAGE_KEY, []);
+    caps = safeGet(CAP_KEY, { monthly: 0, yearly: 0 });
+  }
+  function persistSubs() { safeSet(STORAGE_KEY, subs); touchSavedIndicator(); }
+  function persistCaps() { safeSet(CAP_KEY, caps); touchSavedIndicator(); }
+
+  function touchSavedIndicator() {
+    const el = document.getElementById('savedIndicator');
+    if (!el) return;
+    const time = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    el.textContent = 'All changes saved · ' + time;
+    el.classList.remove('pending');
+  }
+
+  function uid() { return 'id_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+
+  function addMonths(dateStr, n) {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return '';
+    d.setMonth(d.getMonth() + n);
+    return d.toISOString().slice(0, 10);
+  }
+  function computeRenewal(subscribedDate, cycle) {
+    if (!subscribedDate) return '';
+    if (cycle === 'monthly') return addMonths(subscribedDate, 1);
+    if (cycle === 'yearly') return addMonths(subscribedDate, 12);
+    return subscribedDate;
+  }
+
+  // All the dates a subscription actually renewed on: from the month after
+  // it was subscribed, up to the cancellation date (or today, if still active/pending).
+  function renewalHistory(sub) {
+    if (!sub.subscribedDate || sub.cycle === 'one-time') return [];
+    const start = new Date(sub.subscribedDate);
+    if (isNaN(start)) return [];
+    const step = sub.cycle === 'monthly' ? 1 : 12;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const boundaryStr = (sub.status === 'cancelled' && sub.cancelledDate) ? sub.cancelledDate : todayStr;
+    const boundary = new Date(boundaryStr);
+    if (isNaN(boundary)) return [];
+
+    const dates = [];
+    let cursor = new Date(start);
+    let safety = 0;
+    while (safety < 600) {
+      cursor = new Date(cursor);
+      cursor.setMonth(cursor.getMonth() + step);
+      if (cursor > boundary) break;
+      dates.push(cursor.toISOString().slice(0, 10));
+      safety++;
+    }
+    return dates;
+  }
+
+  function fmtMonthYear(dateStr) {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+  }
+
+  function monthlyEquivalent(sub) {
+    // Only counts platforms explicitly billed monthly — no conversion from yearly plans.
+    return sub.cycle === 'monthly' ? sub.price : 0;
+  }
+  function yearlyEquivalent(sub) {
+    // Only counts platforms explicitly billed yearly — no conversion from monthly plans.
+    return sub.cycle === 'yearly' ? sub.price : 0;
+  }
+
+  function fmtAED(n) {
+    const v = Math.round(n * 100) / 100;
+    return 'AED ' + v.toLocaleString('en-AE', { minimumFractionDigits: v % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 });
+  }
+
+  function recalcBudgets() {
+    const active = subs.filter(s => s.status === 'active');
+    const mTotal = active.reduce((sum, s) => sum + monthlyEquivalent(s), 0);
+    const yTotal = active.reduce((sum, s) => sum + yearlyEquivalent(s), 0);
+
+    document.getElementById('monthlySpend').textContent = fmtAED(mTotal);
+    document.getElementById('yearlySpend').textContent = fmtAED(yTotal);
+
+    updateBar('monthlyBar', 'monthlyStatus', mTotal, caps.monthly, 'month');
+    updateBar('yearlyBar', 'yearlyStatus', yTotal, caps.yearly, 'year');
+  }
+
+  function updateBar(barId, statusId, total, cap, label) {
+    const bar = document.getElementById(barId);
+    const status = document.getElementById(statusId);
+    if (!cap || cap <= 0) {
+      bar.style.width = '0%';
+      bar.className = 'bar-fill';
+      status.textContent = 'No cap set for this ' + label + '.';
+      status.className = 'status-line';
+      return;
+    }
+    const pct = Math.min((total / cap) * 100, 999);
+    bar.style.width = Math.min(pct, 100) + '%';
+    if (total > cap) {
+      bar.className = 'bar-fill over';
+      status.textContent = 'Over cap by ' + fmtAED(total - cap) + ' this ' + label + '.';
+      status.className = 'status-line over-text';
+    } else if (pct >= 85) {
+      bar.className = 'bar-fill near';
+      status.textContent = fmtAED(cap - total) + ' left before hitting the cap.';
+      status.className = 'status-line';
+    } else {
+      bar.className = 'bar-fill';
+      status.textContent = fmtAED(cap - total) + ' left before hitting the cap.';
+      status.className = 'status-line';
+    }
+  }
+
+  function statusLabel(s) {
+    if (s === 'active') return 'Active';
+    if (s === 'cancelled') return 'Cancelled';
+    return 'Yet to subscribe';
+  }
+
+  function render() {
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+    const filtered = subs.filter(s => currentFilter === 'all' || s.status === currentFilter);
+
+    document.getElementById('countLabel').textContent = filtered.length + ' of ' + subs.length + ' shown';
+    document.getElementById('emptyState').style.display = subs.length === 0 ? 'block' : 'none';
+
+    filtered.sort((a, b) => (a.renewalDate || '').localeCompare(b.renewalDate || ''));
+
+    filtered.forEach(sub => {
+      const tr = document.createElement('tr');
+      const history = renewalHistory(sub);
+      const isExpanded = expandedIds.has(sub.id);
+
+      tr.innerHTML = `
+        <td class="col-platform" data-label="Platform">
+          <input type="text" value="${escapeAttr(sub.platform)}" data-field="platform">
+        </td>
+        <td class="col-date" data-label="Subscribed">
+          <input type="date" value="${sub.subscribedDate || ''}" data-field="subscribedDate">
+        </td>
+        <td class="col-cycle" data-label="Cycle">
+          <select data-field="cycle">
+            <option value="monthly" ${sub.cycle === 'monthly' ? 'selected' : ''}>Monthly</option>
+            <option value="yearly" ${sub.cycle === 'yearly' ? 'selected' : ''}>Yearly</option>
+            <option value="one-time" ${sub.cycle === 'one-time' ? 'selected' : ''}>One-time</option>
+          </select>
+        </td>
+        <td class="col-date" data-label="Renews">
+          <input type="date" value="${sub.renewalDate || ''}" data-field="renewalDate">
+        </td>
+        <td class="col-price" data-label="Price">
+          <input type="number" min="0" step="0.01" value="${sub.price}" data-field="price">
+        </td>
+        <td class="col-status" data-label="Status">
+          <select data-field="status">
+            <option value="active" ${sub.status === 'active' ? 'selected' : ''}>Active</option>
+            <option value="pending" ${sub.status === 'pending' ? 'selected' : ''}>Yet to subscribe</option>
+            <option value="cancelled" ${sub.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+          </select>
+        </td>
+        <td class="col-actions" data-label="">
+          ${history.length ? `<button class="icon-btn hist ${isExpanded ? 'is-open' : ''}" title="Show renewal history" data-action="history">${isExpanded ? '▾' : '▸'}</button>` : ''}
+          <button class="icon-btn recalc" title="Recalculate renewal from subscribed date + cycle" data-action="recalc">↻</button>
+          <button class="icon-btn" title="Delete" data-action="delete">✕</button>
+        </td>
+      `;
+
+      tr.querySelectorAll('[data-field]').forEach(el => {
+        el.addEventListener('change', (e) => {
+          const field = e.target.getAttribute('data-field');
+          let val = e.target.value;
+          if (field === 'price') val = parseFloat(val) || 0;
+          sub[field] = val;
+          persistSubs();
+          recalcBudgets();
+          if (field === 'status' || field === 'cycle' || field === 'subscribedDate') render();
+        });
+      });
+
+      tr.querySelector('[data-action="delete"]').addEventListener('click', () => {
+        subs = subs.filter(s => s.id !== sub.id);
+        expandedIds.delete(sub.id);
+        persistSubs();
+        render();
+        recalcBudgets();
+      });
+
+      tr.querySelector('[data-action="recalc"]').addEventListener('click', () => {
+        sub.renewalDate = computeRenewal(sub.subscribedDate, sub.cycle);
+        persistSubs();
+        render();
+      });
+
+      const histBtn = tr.querySelector('[data-action="history"]');
+      if (histBtn) {
+        histBtn.addEventListener('click', () => {
+          if (expandedIds.has(sub.id)) expandedIds.delete(sub.id);
+          else expandedIds.add(sub.id);
+          render();
+        });
+      }
+
+      tbody.appendChild(tr);
+
+      if (isExpanded && history.length) {
+        const hr = document.createElement('tr');
+        hr.className = 'history-row';
+        const chips = history.map(d => `<span class="hist-chip">${fmtMonthYear(d)}</span>`).join('');
+        const cancelFieldHtml = sub.status === 'cancelled'
+          ? `<span class="hist-cancel-field">Cancelled on <input type="date" value="${sub.cancelledDate || ''}" data-cancel-field></span>`
+          : '';
+        hr.innerHTML = `
+          <td colspan="7" data-label="">
+            <div class="hist-panel">
+              <div class="hist-title">Renewed ${history.length} time${history.length === 1 ? '' : 's'} since ${sub.subscribedDate ? fmtMonthYear(sub.subscribedDate) : 'subscribing'}${cancelFieldHtml}</div>
+              <div class="hist-chips">${chips}</div>
+            </div>
+          </td>
+        `;
+        const cancelInput = hr.querySelector('[data-cancel-field]');
+        if (cancelInput) {
+          cancelInput.addEventListener('change', (e) => {
+            sub.cancelledDate = e.target.value;
+            persistSubs();
+            render();
+          });
+        }
+        tbody.appendChild(hr);
+      }
+    });
+
+    recalcBudgets();
+  }
+
+  function escapeAttr(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  // ---- Filters ----
+  document.getElementById('filters').addEventListener('click', (e) => {
+    const btn = e.target.closest('.chip');
+    if (!btn) return;
+    currentFilter = btn.getAttribute('data-filter');
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  });
+
+  // ---- Caps ----
+  document.getElementById('monthlyCap').value = caps.monthly || '';
+  document.getElementById('yearlyCap').value = caps.yearly || '';
+
+  function bindCapInput(id, key) {
+    document.getElementById(id).addEventListener('change', (e) => {
+      caps[key] = parseFloat(e.target.value) || 0;
+      persistCaps();
+      recalcBudgets();
+    });
+  }
+  bindCapInput('monthlyCap', 'monthly');
+  bindCapInput('yearlyCap', 'yearly');
+
+  document.querySelectorAll('.edit-cap').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-cap');
+      const input = document.getElementById(key + 'Cap');
+      input.focus();
+      input.select();
+    });
+  });
+
+  // ---- Add / edit drawer ----
+  const overlay = document.getElementById('overlay');
+  const panelTitle = document.getElementById('panelTitle');
+
+  function openPanel(sub) {
+    editingId = sub ? sub.id : null;
+    panelTitle.textContent = sub ? 'Edit subscription' : 'Add subscription';
+    document.getElementById('fPlatform').value = sub ? sub.platform : '';
+    document.getElementById('fSubscribed').value = sub ? sub.subscribedDate : new Date().toISOString().slice(0, 10);
+    document.getElementById('fCycle').value = sub ? sub.cycle : 'monthly';
+    document.getElementById('fRenewal').value = sub ? sub.renewalDate : computeRenewal(new Date().toISOString().slice(0, 10), 'monthly');
+    document.getElementById('fPrice').value = sub ? sub.price : '';
+    document.getElementById('fStatus').value = sub ? sub.status : 'active';
+    document.getElementById('fCancelled').value = (sub && sub.cancelledDate) ? sub.cancelledDate : '';
+    toggleCancelledField();
+    overlay.classList.add('open');
+    document.getElementById('fPlatform').focus();
+  }
+  function closePanel() {
+    overlay.classList.remove('open');
+    editingId = null;
+  }
+  function toggleCancelledField() {
+    const isCancelled = document.getElementById('fStatus').value === 'cancelled';
+    document.getElementById('fCancelledWrap').style.display = isCancelled ? 'block' : 'none';
+    if (isCancelled && !document.getElementById('fCancelled').value) {
+      document.getElementById('fCancelled').value = new Date().toISOString().slice(0, 10);
+    }
+  }
+  document.getElementById('fStatus').addEventListener('change', toggleCancelledField);
+
+  document.getElementById('openAdd').addEventListener('click', () => openPanel(null));
+  document.getElementById('openAddMobile').addEventListener('click', () => openPanel(null));
+  document.getElementById('cancelBtn').addEventListener('click', closePanel);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closePanel(); });
+
+  // auto-suggest renewal date when subscribed date or cycle changes, in the add form
+  document.getElementById('fSubscribed').addEventListener('change', suggestRenewal);
+  document.getElementById('fCycle').addEventListener('change', suggestRenewal);
+  function suggestRenewal() {
+    const sd = document.getElementById('fSubscribed').value;
+    const cy = document.getElementById('fCycle').value;
+    document.getElementById('fRenewal').value = computeRenewal(sd, cy);
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    const platform = document.getElementById('fPlatform').value.trim();
+    if (!platform) {
+      document.getElementById('fPlatform').focus();
+      return;
+    }
+    const status = document.getElementById('fStatus').value;
+    const data = {
+      platform,
+      subscribedDate: document.getElementById('fSubscribed').value,
+      cycle: document.getElementById('fCycle').value,
+      renewalDate: document.getElementById('fRenewal').value,
+      price: parseFloat(document.getElementById('fPrice').value) || 0,
+      status,
+      cancelledDate: status === 'cancelled' ? document.getElementById('fCancelled').value : '',
+    };
+
+    if (editingId) {
+      const idx = subs.findIndex(s => s.id === editingId);
+      if (idx > -1) subs[idx] = { ...subs[idx], ...data };
+    } else {
+      subs.push({ id: uid(), ...data });
+    }
+    persistSubs();
+    closePanel();
+    render();
+  });
+
+  // ---- Backup: export / import ----
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      caps,
+      subs,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = 'ledger-backup-' + dateStamp + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('importBtn').addEventListener('click', () => {
+    document.getElementById('importFile').click();
+  });
+
+  document.getElementById('importFile').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        if (!parsed || !Array.isArray(parsed.subs)) {
+          alert('This file doesn\'t look like a ledger backup.');
+          return;
+        }
+        const proceed = confirm(
+          'This will replace everything currently in the ledger (' + subs.length + ' entries) with ' +
+          parsed.subs.length + ' entries from the backup. Continue?'
+        );
+        if (!proceed) return;
+        subs = parsed.subs;
+        caps = parsed.caps && typeof parsed.caps === 'object' ? parsed.caps : { monthly: 0, yearly: 0 };
+        expandedIds = new Set();
+        persistSubs();
+        persistCaps();
+        document.getElementById('monthlyCap').value = caps.monthly || '';
+        document.getElementById('yearlyCap').value = caps.yearly || '';
+        render();
+      } catch (err) {
+        alert('Could not read that file — make sure it\'s a backup exported from The Ledger.');
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  // ---- init ----
+  load();
+  document.getElementById('monthlyCap').value = caps.monthly || '';
+  document.getElementById('yearlyCap').value = caps.yearly || '';
+  render();
+})();
+</script>
+</body>
+</html>
