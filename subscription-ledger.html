@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <style>
   :root {
     --bg: #EDE7D8;
@@ -597,10 +598,138 @@
     .field-row { flex-direction: column; gap: 0; }
     .btn-primary, .btn-secondary { min-height: 46px; }
   }
+
+  /* ---- Auth screen ---- */
+  .auth-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .auth-card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    padding: 30px 28px;
+  }
+  .auth-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 30px;
+    margin: 0 0 4px;
+  }
+  .auth-sub {
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    margin: 0 0 22px;
+  }
+  .auth-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--line-strong);
+    margin-bottom: 20px;
+  }
+  .auth-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 12.5px;
+    padding: 10px 0;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .auth-tab.active { color: var(--ink); border-bottom-color: var(--gold); }
+  .auth-form .field { margin-bottom: 13px; }
+  .auth-form .btn-primary { width: 100%; margin-top: 4px; }
+  .auth-msg {
+    font-size: 11.5px;
+    min-height: 14px;
+    margin-bottom: 8px;
+  }
+  .auth-msg.error { color: var(--rust); }
+  .auth-msg.ok { color: var(--green); }
+
+  /* ---- Header user chip ---- */
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .user-chip {
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-align: right;
+  }
+
+  @media (max-width: 760px) {
+    .auth-card { padding: 24px 20px; }
+    .header-right { width: 100%; justify-content: space-between; }
+    .user-chip { text-align: left; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<!-- ============ AUTH SCREEN ============ -->
+<div class="auth-wrap" id="authScreen">
+  <div class="auth-card">
+    <h1 class="auth-title">The Ledger</h1>
+    <p class="auth-sub">Every subscription, one page. Sign in to track yours.</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" data-tab="login">Log in</button>
+      <button class="auth-tab" id="tabSignup" data-tab="signup">Sign up</button>
+    </div>
+
+    <!-- Log in form -->
+    <form id="loginForm" class="auth-form">
+      <div class="field">
+        <label for="liEmail">Email</label>
+        <input type="email" id="liEmail" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="liPassword">Password</label>
+        <input type="password" id="liPassword" required autocomplete="current-password">
+      </div>
+      <div class="auth-msg" id="loginMsg"></div>
+      <button type="submit" class="btn-primary" id="loginSubmit">Log in</button>
+    </form>
+
+    <!-- Sign up form -->
+    <form id="signupForm" class="auth-form" style="display:none;">
+      <div class="field">
+        <label for="suName">Full name</label>
+        <input type="text" id="suName" required autocomplete="name">
+      </div>
+      <div class="field">
+        <label for="suEmail">Email</label>
+        <input type="email" id="suEmail" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="suPhone">Phone number</label>
+        <input type="tel" id="suPhone" required autocomplete="tel" placeholder="+971 5X XXX XXXX">
+      </div>
+      <div class="field">
+        <label for="suPassword">Password</label>
+        <input type="password" id="suPassword" required autocomplete="new-password" minlength="6">
+      </div>
+      <div class="field">
+        <label for="suPassword2">Confirm password</label>
+        <input type="password" id="suPassword2" required autocomplete="new-password" minlength="6">
+      </div>
+      <div class="auth-msg" id="signupMsg"></div>
+      <button type="submit" class="btn-primary" id="signupSubmit">Create account</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MAIN APP (hidden until logged in) ============ -->
+<div class="wrap" id="appScreen" style="display:none;">
 
   <header class="top">
     <div>
@@ -608,7 +737,10 @@
       <p>Every subscription, one page. Track renewals, watch the total, catch what's quietly draining the budget.</p>
       <div class="saved-indicator" id="savedIndicator">All changes saved</div>
     </div>
-    <button class="add-btn" id="openAdd">+ Add subscription</button>
+    <div class="header-right">
+      <div class="user-chip" id="userChip"></div>
+      <button class="add-btn" id="openAdd">+ Add subscription</button>
+    </div>
   </header>
 
   <section class="budgets">
@@ -669,11 +801,10 @@
   </div>
 
   <footer class="note">
-    <p>Stored privately in this browser only — nothing here is sent anywhere. Changes save automatically as you type. Clearing your browser data (or opening this on a different device) will not carry your entries over — use <strong>Backup</strong> below to move or protect your data.</p>
+    <p>Your subscriptions are saved to your account and follow you to any device you log into. Changes save automatically as you edit. Use <strong>Backup</strong> below any time you want a local copy of your own data.</p>
     <div class="backup-actions">
       <button class="btn-ghost" id="exportBtn">⭳ Download backup (.json)</button>
-      <button class="btn-ghost" id="importBtn">⭱ Restore from backup</button>
-      <input type="file" id="importFile" accept="application/json,.json" style="display:none;">
+      <button class="btn-ghost" id="logoutBtn">⏻ Log out</button>
     </div>
   </footer>
 </div>
@@ -754,41 +885,93 @@
 
 <script>
 (function () {
-  const STORAGE_KEY = 'ledger.subscriptions.v1';
-  const CAP_KEY = 'ledger.caps.v1';
+  const SUPABASE_URL = 'https://piczhhsteppmtvwtzudy.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_GXU8ornMf9ebJEY-MlWekQ_vhZuKEph';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let subs = [];
   let caps = { monthly: 0, yearly: 0 };
   let editingId = null;
   let currentFilter = 'all';
   let expandedIds = new Set();
+  let currentUser = null;
 
-  function safeGet(key, fallback) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch (e) { return fallback; }
+  // ---- DB <-> app field mapping (DB is snake_case, app stays camelCase) ----
+  function fromDbRow(row) {
+    return {
+      id: row.id,
+      platform: row.platform,
+      subscribedDate: row.subscribed_date || '',
+      cycle: row.cycle,
+      renewalDate: row.renewal_date || '',
+      price: parseFloat(row.price) || 0,
+      status: row.status,
+      cancelledDate: row.cancelled_date || '',
+    };
   }
-  function safeSet(key, val) {
-    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
-  }
+  const FIELD_TO_COLUMN = {
+    platform: 'platform',
+    subscribedDate: 'subscribed_date',
+    cycle: 'cycle',
+    renewalDate: 'renewal_date',
+    price: 'price',
+    status: 'status',
+    cancelledDate: 'cancelled_date',
+  };
 
-  function load() {
-    subs = safeGet(STORAGE_KEY, []);
-    caps = safeGet(CAP_KEY, { monthly: 0, yearly: 0 });
-  }
-  function persistSubs() { safeSet(STORAGE_KEY, subs); touchSavedIndicator(); }
-  function persistCaps() { safeSet(CAP_KEY, caps); touchSavedIndicator(); }
-
-  function touchSavedIndicator() {
+  function touchSavedIndicator(state) {
     const el = document.getElementById('savedIndicator');
     if (!el) return;
+    if (state === 'saving') {
+      el.textContent = 'Saving…';
+      el.classList.add('pending');
+      return;
+    }
+    if (state === 'error') {
+      el.textContent = 'Could not save — check your connection';
+      el.classList.add('pending');
+      return;
+    }
     const time = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     el.textContent = 'All changes saved · ' + time;
     el.classList.remove('pending');
   }
 
-  function uid() { return 'id_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+  async function updateSubField(sub, field, val) {
+    sub[field] = val;
+    const column = FIELD_TO_COLUMN[field];
+    if (!column) return;
+    touchSavedIndicator('saving');
+    const payload = {};
+    payload[column] = (val === '' && (field === 'renewalDate' || field === 'subscribedDate' || field === 'cancelledDate')) ? null : val;
+    const { error } = await sb.from('subscriptions').update(payload).eq('id', sub.id);
+    if (error) { touchSavedIndicator('error'); console.error(error); return; }
+    touchSavedIndicator('saved');
+  }
+
+  async function deleteSub(sub) {
+    touchSavedIndicator('saving');
+    const { error } = await sb.from('subscriptions').delete().eq('id', sub.id);
+    if (error) { touchSavedIndicator('error'); console.error(error); return; }
+    subs = subs.filter(s => s.id !== sub.id);
+    expandedIds.delete(sub.id);
+    touchSavedIndicator('saved');
+    render();
+  }
+
+  async function saveCaps() {
+    touchSavedIndicator('saving');
+    const { error } = await sb.from('budgets').upsert({
+      user_id: currentUser.id,
+      monthly_cap: caps.monthly,
+      yearly_cap: caps.yearly,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) { touchSavedIndicator('error'); console.error(error); return; }
+    touchSavedIndicator('saved');
+  }
+
+  function uidLocal() { return 'tmp_' + Math.random().toString(36).slice(2, 10); }
 
   function addMonths(dateStr, n) {
     const d = new Date(dateStr);
@@ -943,28 +1126,23 @@
       `;
 
       tr.querySelectorAll('[data-field]').forEach(el => {
-        el.addEventListener('change', (e) => {
+        el.addEventListener('change', async (e) => {
           const field = e.target.getAttribute('data-field');
           let val = e.target.value;
           if (field === 'price') val = parseFloat(val) || 0;
-          sub[field] = val;
-          persistSubs();
+          await updateSubField(sub, field, val);
           recalcBudgets();
           if (field === 'status' || field === 'cycle' || field === 'subscribedDate') render();
         });
       });
 
       tr.querySelector('[data-action="delete"]').addEventListener('click', () => {
-        subs = subs.filter(s => s.id !== sub.id);
-        expandedIds.delete(sub.id);
-        persistSubs();
-        render();
-        recalcBudgets();
+        deleteSub(sub);
       });
 
-      tr.querySelector('[data-action="recalc"]').addEventListener('click', () => {
-        sub.renewalDate = computeRenewal(sub.subscribedDate, sub.cycle);
-        persistSubs();
+      tr.querySelector('[data-action="recalc"]').addEventListener('click', async () => {
+        const next = computeRenewal(sub.subscribedDate, sub.cycle);
+        await updateSubField(sub, 'renewalDate', next);
         render();
       });
 
@@ -996,9 +1174,8 @@
         `;
         const cancelInput = hr.querySelector('[data-cancel-field]');
         if (cancelInput) {
-          cancelInput.addEventListener('change', (e) => {
-            sub.cancelledDate = e.target.value;
-            persistSubs();
+          cancelInput.addEventListener('change', async (e) => {
+            await updateSubField(sub, 'cancelledDate', e.target.value);
             render();
           });
         }
@@ -1024,13 +1201,10 @@
   });
 
   // ---- Caps ----
-  document.getElementById('monthlyCap').value = caps.monthly || '';
-  document.getElementById('yearlyCap').value = caps.yearly || '';
-
   function bindCapInput(id, key) {
-    document.getElementById(id).addEventListener('change', (e) => {
+    document.getElementById(id).addEventListener('change', async (e) => {
       caps[key] = parseFloat(e.target.value) || 0;
-      persistCaps();
+      await saveCaps();
       recalcBudgets();
     });
   }
@@ -1091,7 +1265,7 @@
     document.getElementById('fRenewal').value = computeRenewal(sd, cy);
   }
 
-  document.getElementById('saveBtn').addEventListener('click', () => {
+  document.getElementById('saveBtn').addEventListener('click', async () => {
     const platform = document.getElementById('fPlatform').value.trim();
     if (!platform) {
       document.getElementById('fPlatform').focus();
@@ -1108,18 +1282,45 @@
       cancelledDate: status === 'cancelled' ? document.getElementById('fCancelled').value : '',
     };
 
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true;
+    touchSavedIndicator('saving');
+
     if (editingId) {
+      const { error } = await sb.from('subscriptions').update({
+        platform: data.platform,
+        subscribed_date: data.subscribedDate || null,
+        cycle: data.cycle,
+        renewal_date: data.renewalDate || null,
+        price: data.price,
+        status: data.status,
+        cancelled_date: data.cancelledDate || null,
+      }).eq('id', editingId);
+      saveBtn.disabled = false;
+      if (error) { touchSavedIndicator('error'); console.error(error); return; }
       const idx = subs.findIndex(s => s.id === editingId);
       if (idx > -1) subs[idx] = { ...subs[idx], ...data };
     } else {
-      subs.push({ id: uid(), ...data });
+      const { data: inserted, error } = await sb.from('subscriptions').insert({
+        user_id: currentUser.id,
+        platform: data.platform,
+        subscribed_date: data.subscribedDate || null,
+        cycle: data.cycle,
+        renewal_date: data.renewalDate || null,
+        price: data.price,
+        status: data.status,
+        cancelled_date: data.cancelledDate || null,
+      }).select().single();
+      saveBtn.disabled = false;
+      if (error) { touchSavedIndicator('error'); console.error(error); return; }
+      subs.push(fromDbRow(inserted));
     }
-    persistSubs();
+    touchSavedIndicator('saved');
     closePanel();
     render();
   });
 
-  // ---- Backup: export / import ----
+  // ---- Backup: export ----
   document.getElementById('exportBtn').addEventListener('click', () => {
     const payload = {
       exportedAt: new Date().toISOString(),
@@ -1138,47 +1339,130 @@
     URL.revokeObjectURL(url);
   });
 
-  document.getElementById('importBtn').addEventListener('click', () => {
-    document.getElementById('importFile').click();
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    window.location.reload();
   });
 
-  document.getElementById('importFile').addEventListener('change', (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(reader.result);
-        if (!parsed || !Array.isArray(parsed.subs)) {
-          alert('This file doesn\'t look like a ledger backup.');
-          return;
-        }
-        const proceed = confirm(
-          'This will replace everything currently in the ledger (' + subs.length + ' entries) with ' +
-          parsed.subs.length + ' entries from the backup. Continue?'
-        );
-        if (!proceed) return;
-        subs = parsed.subs;
-        caps = parsed.caps && typeof parsed.caps === 'object' ? parsed.caps : { monthly: 0, yearly: 0 };
-        expandedIds = new Set();
-        persistSubs();
-        persistCaps();
-        document.getElementById('monthlyCap').value = caps.monthly || '';
-        document.getElementById('yearlyCap').value = caps.yearly || '';
-        render();
-      } catch (err) {
-        alert('Could not read that file — make sure it\'s a backup exported from The Ledger.');
-      }
-      e.target.value = '';
-    };
-    reader.readAsText(file);
+  // ---- Auth screen wiring ----
+  const authScreen = document.getElementById('authScreen');
+  const appScreen = document.getElementById('appScreen');
+  const tabLogin = document.getElementById('tabLogin');
+  const tabSignup = document.getElementById('tabSignup');
+  const loginForm = document.getElementById('loginForm');
+  const signupForm = document.getElementById('signupForm');
+  const loginMsg = document.getElementById('loginMsg');
+  const signupMsg = document.getElementById('signupMsg');
+
+  function setAuthMsg(el, text, kind) {
+    el.textContent = text;
+    el.className = 'auth-msg' + (kind ? ' ' + kind : '');
+  }
+
+  function switchTab(which) {
+    const toLogin = which === 'login';
+    tabLogin.classList.toggle('active', toLogin);
+    tabSignup.classList.toggle('active', !toLogin);
+    loginForm.style.display = toLogin ? 'block' : 'none';
+    signupForm.style.display = toLogin ? 'none' : 'block';
+    setAuthMsg(loginMsg, '');
+    setAuthMsg(signupMsg, '');
+  }
+  tabLogin.addEventListener('click', () => switchTab('login'));
+  tabSignup.addEventListener('click', () => switchTab('signup'));
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    setAuthMsg(loginMsg, '');
+    const email = document.getElementById('liEmail').value.trim();
+    const password = document.getElementById('liPassword').value;
+    const btn = document.getElementById('loginSubmit');
+    btn.disabled = true;
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    btn.disabled = false;
+    if (error) {
+      setAuthMsg(loginMsg, error.message, 'error');
+      return;
+    }
+    await onAuthSuccess(data.user);
   });
 
-  // ---- init ----
-  load();
-  document.getElementById('monthlyCap').value = caps.monthly || '';
-  document.getElementById('yearlyCap').value = caps.yearly || '';
-  render();
+  signupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    setAuthMsg(signupMsg, '');
+    const full_name = document.getElementById('suName').value.trim();
+    const email = document.getElementById('suEmail').value.trim();
+    const phone = document.getElementById('suPhone').value.trim();
+    const password = document.getElementById('suPassword').value;
+    const password2 = document.getElementById('suPassword2').value;
+
+    if (!full_name || !email || !phone || !password) {
+      setAuthMsg(signupMsg, 'Please fill in every field.', 'error');
+      return;
+    }
+    if (password.length < 6) {
+      setAuthMsg(signupMsg, 'Password needs to be at least 6 characters.', 'error');
+      return;
+    }
+    if (password !== password2) {
+      setAuthMsg(signupMsg, 'Passwords don\u2019t match.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('signupSubmit');
+    btn.disabled = true;
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name, phone } },
+    });
+    btn.disabled = false;
+    if (error) {
+      setAuthMsg(signupMsg, error.message, 'error');
+      return;
+    }
+    if (data.session) {
+      await onAuthSuccess(data.user);
+    } else {
+      setAuthMsg(signupMsg, 'Account created — check your email to confirm it, then log in.', 'ok');
+      switchTab('login');
+      document.getElementById('liEmail').value = email;
+    }
+  });
+
+  async function loadUserData() {
+    const [subsRes, capsRes] = await Promise.all([
+      sb.from('subscriptions').select('*').eq('user_id', currentUser.id),
+      sb.from('budgets').select('*').eq('user_id', currentUser.id).maybeSingle(),
+    ]);
+    subs = (subsRes.data || []).map(fromDbRow);
+    caps = capsRes.data
+      ? { monthly: parseFloat(capsRes.data.monthly_cap) || 0, yearly: parseFloat(capsRes.data.yearly_cap) || 0 }
+      : { monthly: 0, yearly: 0 };
+    document.getElementById('monthlyCap').value = caps.monthly || '';
+    document.getElementById('yearlyCap').value = caps.yearly || '';
+  }
+
+  async function onAuthSuccess(user) {
+    currentUser = user;
+    await loadUserData();
+
+    const name = (user.user_metadata && user.user_metadata.full_name) || user.email;
+    document.getElementById('userChip').textContent = 'Signed in as ' + name;
+
+    authScreen.style.display = 'none';
+    appScreen.style.display = 'block';
+    touchSavedIndicator('saved');
+    render();
+  }
+
+  // ---- init: check for an existing session first ----
+  (async function init() {
+    const { data } = await sb.auth.getSession();
+    if (data && data.session && data.session.user) {
+      await onAuthSuccess(data.session.user);
+    }
+  })();
 })();
 </script>
 </body>
